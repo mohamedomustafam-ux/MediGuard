@@ -1,5 +1,17 @@
+
 import streamlit as st
-import pandas as pd
+import sqlite3
+
+from database.database import (
+    init_db,
+    create_patient,
+    get_all_patients,
+    get_patient,
+    get_patient_history
+)
+
+# Initialize database
+init_db()
 
 # Page configuration
 st.set_page_config(
@@ -8,22 +20,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# Application title
 st.title("MediGuard")
 st.caption("Clinical Decision Support — Educational Prototype")
 
-st.divider()
-
 st.info(
-    "This application uses synthetic data only. "
-    "It is not intended for clinical use or prescribing decisions."
+    "Synthetic data only. Not intended for clinical "
+    "use or prescribing decisions."
 )
 
-# Sidebar
-st.sidebar.title("Navigation")
-
+# Navigation
 page = st.sidebar.radio(
-    "Select a page",
+    "Navigation",
     [
         "Dashboard",
         "Patient Profile",
@@ -31,58 +38,177 @@ page = st.sidebar.radio(
     ]
 )
 
+
+# ---------------------------------
+# DASHBOARD
+# ---------------------------------
+
 if page == "Dashboard":
 
     st.header("System Dashboard")
 
+    patients = get_all_patients()
+
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Demo Patients", "0")
-    col2.metric("Prescriptions", "0")
-    col3.metric("Safety Alerts", "0")
+    col1.metric("Demo Patients", len(patients))
+    col2.metric("Prescriptions", 0)
+    col3.metric("Safety Alerts", 0)
 
-    st.subheader("Welcome to MediGuard")
+    st.subheader("Recent Patients")
 
-    st.write(
-        "A prototype exploring how software can "
-        "support medication safety through structured "
-        "data and transparent decision rules."
-    )
+    if patients:
+        st.dataframe(
+            patients,
+            use_container_width=True
+        )
+    else:
+        st.info("No demo patients registered yet.")
+
+
+# ---------------------------------
+# PATIENT PROFILE
+# ---------------------------------
 
 elif page == "Patient Profile":
 
-    st.header("Patient Profile")
+    st.header("Patient Management")
 
-    patient_id = st.text_input(
-        "Demo Patient ID",
-        placeholder="DEMO-001"
-    )
+    st.subheader("Register a Demo Patient")
 
-    age = st.number_input(
-        "Age",
-        min_value=0,
-        max_value=120,
-        value=25
-    )
+    with st.form("patient_form"):
 
-    notes = st.text_area(
-        "Synthetic Medical History",
-        placeholder="Enter fictional test information..."
-    )
+        patient_code = st.text_input(
+            "Patient Code",
+            placeholder="DEMO-001"
+        )
 
-    if st.button("Save Demo Profile"):
-        if patient_id.strip():
-            st.success("Demo profile entered successfully.")
-        else:
-            st.warning("Please enter a demo patient ID.")
+        age = st.number_input(
+            "Age",
+            min_value=0,
+            max_value=120,
+            value=25
+        )
+
+        condition = st.text_input(
+            "Fictional Medical Condition",
+            placeholder="Example: Demo Condition A"
+        )
+
+        notes = st.text_area(
+            "Additional Synthetic Notes"
+        )
+
+        submitted = st.form_submit_button(
+            "Save Patient"
+        )
+
+        if submitted:
+
+            if not patient_code.strip():
+                st.error("Patient code is required.")
+
+            else:
+                try:
+                    patient_id = create_patient(
+                        patient_code.strip(),
+                        int(age),
+                        condition,
+                        notes
+                    )
+
+                    st.success(
+                        f"Patient saved successfully. "
+                        f"Database ID: {patient_id}"
+                    )
+
+                except sqlite3.IntegrityError:
+                    st.error(
+                        "This patient code already exists."
+                    )
+
+                except sqlite3.Error as error:
+                    st.error(f"Database error: {error}")
+
+
+    st.divider()
+
+    st.subheader("Retrieve Patient Profile")
+
+    patients = get_all_patients()
+
+    if patients:
+
+        patient_options = {
+            f"{p['patient_code']} (ID: {p['id']})": p['id']
+            for p in patients
+        }
+
+        selected_patient = st.selectbox(
+            "Select a patient",
+            options=list(patient_options.keys())
+        )
+
+        if st.button("Load Patient Profile"):
+
+            patient_id = patient_options[selected_patient]
+
+            patient = get_patient(patient_id)
+
+            history = get_patient_history(patient_id)
+
+            if patient:
+
+                st.success("Patient retrieved successfully.")
+
+                col1, col2 = st.columns(2)
+
+                col1.metric(
+                    "Patient Code",
+                    patient["patient_code"]
+                )
+
+                col2.metric(
+                    "Age",
+                    patient["age"]
+                )
+
+                st.subheader("Synthetic Medical History")
+
+                if history:
+
+                    for item in history:
+
+                        st.write(
+                            "**Condition:**",
+                            item["condition_name"]
+                        )
+
+                        st.write(
+                            "**Notes:**",
+                            item["notes"] or "No notes"
+                        )
+
+                        st.divider()
+
+                else:
+                    st.info(
+                        "No medical history recorded."
+                    )
+
+    else:
+        st.info("Register a demo patient first.")
+
+
+# ---------------------------------
+# PRESCRIPTION REVIEW
+# ---------------------------------
 
 elif page == "Prescription Review":
 
     st.header("Prescription Review")
 
-    st.write(
-        "This section will later contain "
-        "the experimental prescription review engine."
+    st.warning(
+        "The experimental review engine "
+        "has not been implemented yet."
     )
-
-    st.warning("The safety checking engine is not implemented yet.")
