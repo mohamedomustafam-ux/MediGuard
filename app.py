@@ -7,7 +7,9 @@ from database.database import (
     create_patient,
     get_all_patients,
     get_patient,
-    get_patient_history
+    get_patient_history,
+    create_medication,
+    get_all_medications,
 )
 
 # Initialize database
@@ -34,6 +36,7 @@ page = st.sidebar.radio(
     [
         "Dashboard",
         "Patient Profile",
+        "Medication Management",
         "Prescription Review"
     ]
 )
@@ -203,6 +206,63 @@ elif page == "Patient Profile":
 # ---------------------------------
 # PRESCRIPTION REVIEW
 # ---------------------------------
+
+
+elif page == "Medication Management":
+    st.header("Medication Management")
+
+    st.caption("Synthetic medication catalog")
+
+    with st.form("medication_form"):
+        generic_name = st.text_input("Generic Name")
+        display_name = st.text_input("Display Name")
+
+        submitted = st.form_submit_button("Add Medication")
+
+        if submitted:
+            if not generic_name.strip() or not display_name.strip():
+                st.error("Both fields are required.")
+
+            else:
+                existing_medications = get_all_medications()
+
+                duplicate = any(
+                    medication[1].casefold() == generic_name.strip().casefold()
+                    for medication in existing_medications
+                )
+
+                if duplicate:
+                    st.warning("This medication already exists.")
+
+                else:
+                    try:
+                        create_medication(
+                            generic_name.strip(),
+                            display_name.strip(),
+                            "synthetic"
+                        )
+
+                        st.success("Synthetic medication added.")
+                        st.rerun()
+
+                    except Exception as error:
+                        st.error(f"Error: {error}")
+
+    st.divider()
+
+    st.subheader("Medication Catalog")
+
+    medications = get_all_medications()
+
+    if medications:
+        for medication in medications:
+            with st.container(border=True):
+                st.write(f"**{medication[2]}**")
+                st.caption(f"Code: {medication[1]}")
+                st.caption(f"Source: {medication[3]}")
+    else:
+        st.info("No medications registered yet.")
+
 
 elif page == "Prescription Review":
 

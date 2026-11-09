@@ -103,6 +103,68 @@ def init_db():
     print("MediGuard database initialized successfully!")
 
 
+def create_medication(generic_name, display_name, data_source="synthetic"):
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            INSERT INTO medications (
+                generic_name,
+                display_name,
+                data_source
+            )
+            VALUES (?, ?, ?)
+        """, (generic_name, display_name, data_source))
+
+        connection.commit()
+        return cursor.lastrowid
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def get_all_medications():
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT id, generic_name, display_name, data_source
+            FROM medications
+            ORDER BY id DESC
+        """)
+
+        return cursor.fetchall()
+
+    finally:
+        connection.close()
+
+
+def get_medication(medication_id):
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT id, generic_name, display_name, data_source
+            FROM medications
+            WHERE id = ?
+        """, (medication_id,))
+
+        return cursor.fetchone()
+
+    finally:
+        connection.close()
+
+
 if __name__ == "__main__":
     init_db()
 
