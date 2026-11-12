@@ -250,6 +250,78 @@ def get_patient(patient_id):
         connection.close()
 
 
+def create_prescription_with_item(patient_id, medication_id):
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        # Create prescription
+        cursor.execute("""
+            INSERT INTO prescriptions (patient_id, status)
+            VALUES (?, 'draft')
+        """, (patient_id,))
+
+        prescription_id = cursor.lastrowid
+
+        # Add a synthetic item
+        cursor.execute("""
+            INSERT INTO prescription_items (
+                prescription_id,
+                medication_id,
+                dose_text,
+                frequency,
+                duration_days
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            prescription_id,
+            medication_id,
+            "SYNTHETIC-PLACEHOLDER",
+            "SYNTHETIC-PLACEHOLDER",
+            None
+        ))
+
+        connection.commit()
+        return prescription_id
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def get_all_prescriptions():
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                p.id,
+                pt.patient_code,
+                p.status,
+                p.created_at,
+                m.display_name
+            FROM prescriptions p
+            JOIN patients pt
+                ON p.patient_id = pt.id
+            JOIN prescription_items pi
+                ON p.id = pi.prescription_id
+            JOIN medications m
+                ON pi.medication_id = m.id
+            ORDER BY p.id DESC
+        """)
+
+        return cursor.fetchall()
+
+    finally:
+        connection.close()
+
+
 def get_patient_history(patient_id):
     """Retrieve the patient's synthetic medical history."""
 

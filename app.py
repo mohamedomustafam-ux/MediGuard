@@ -10,6 +10,8 @@ from database.database import (
     get_patient_history,
     create_medication,
     get_all_medications,
+    create_prescription_with_item,
+    get_all_prescriptions,
 )
 
 # Initialize database
@@ -262,6 +264,79 @@ elif page == "Medication Management":
                 st.caption(f"Source: {medication[3]}")
     else:
         st.info("No medications registered yet.")
+
+
+elif page == "Prescription Review":
+    st.header("Prescription Management")
+
+    patients = get_all_patients()
+    medications = get_all_medications()
+
+    if not patients:
+        st.warning("Register a synthetic patient first.")
+
+    elif not medications:
+        st.warning("Add a synthetic medication first.")
+
+    else:
+        with st.form("prescription_form"):
+
+            patient_options = {
+                f"{patient['patient_code']} (ID: {patient['id']})": patient["id"]
+                for patient in patients
+            }
+
+            medication_options = {
+                medication[2]: medication[0]
+                for medication in medications
+            }
+
+            selected_patient = st.selectbox(
+                "Select Patient",
+                list(patient_options.keys())
+            )
+
+            selected_medication = st.selectbox(
+                "Select Medication",
+                list(medication_options.keys())
+            )
+
+            submitted = st.form_submit_button(
+                "Create Synthetic Prescription"
+            )
+
+            if submitted:
+                try:
+                    prescription_id = create_prescription_with_item(
+                        patient_options[selected_patient],
+                        medication_options[selected_medication]
+                    )
+
+                    st.success(
+                        f"Synthetic prescription #{prescription_id} created."
+                    )
+
+                    st.rerun()
+
+                except Exception as error:
+                    st.error(f"Error: {error}")
+
+    st.divider()
+
+    st.subheader("Prescription Records")
+
+    prescriptions = get_all_prescriptions()
+
+    if prescriptions:
+        for prescription in prescriptions:
+            with st.container(border=True):
+                st.write(f"**Prescription #{prescription[0]}**")
+                st.write(f"Patient: {prescription[1]}")
+                st.write(f"Medication: {prescription[4]}")
+                st.write(f"Status: {prescription[2]}")
+                st.caption(f"Created: {prescription[3]}")
+    else:
+        st.info("No prescriptions registered yet.")
 
 
 elif page == "Prescription Review":
